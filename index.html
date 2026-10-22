@@ -1,341 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Drone Activity Record</title>
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  padding: 40px;
+  background: #f5f5f5;
+}
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+button {
+  width: 90%;
+  max-width: 300px;
+  padding: 15px;
+  font-size: 16px;
+  margin: 10px;
+  border-radius: 10px;
+  border: none;
+}
 
-    body {
-      margin: 0;
-      padding: 16px;
-      background: #f1f5f9;
-      font-family: Arial, sans-serif;
-      color: #1e293b;
-    }
-
-    .container {
-      max-width: 600px;
-      margin: auto;
-    }
-
-    h2 {
-      text-align: center;
-      font-size: 23px;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: #64748b;
-      font-size: 14px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 12px;
-      padding: 15px;
-      margin: 14px 0;
-      box-shadow: 0 2px 6px #00000010;
-    }
-
-    .card h3 {
-      margin-top: 0;
-    }
-
-    label {
-      display: block;
-      margin-top: 10px;
-      font-size: 14px;
-    }
-
-    input {
-      width: 100%;
-      min-height: 44px;
-      padding: 10px;
-      margin-top: 5px;
-      border: 1px solid #cbd5e1;
-      border-radius: 7px;
-      font-size: 16px;
-      background: #f8fafc;
-    }
-
-    button {
-      width: 100%;
-      min-height: 48px;
-      padding: 12px;
-      margin-top: 10px;
-      border: 0;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    .capture {
-      background: #15803d;
-      color: white;
-    }
-
-    .map {
-      background: #e2e8f0;
-      color: #1e293b;
-    }
-
-    .submit {
-      background: #1d4ed8;
-      color: white;
-    }
-
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-
-    #status {
-      padding: 12px;
-      margin-top: 12px;
-      background: white;
-      border-radius: 8px;
-      overflow-wrap: anywhere;
-    }
-
-    .note {
-      font-size: 13px;
-      color: #64748b;
-    }
-  </style>
+.mapBtn { background: #34a853; color: white; }
+.continueBtn { background: #0b57d0; color: white; }
+</style>
 </head>
 
 <body>
-<div class="container">
 
-  <h2>Drone Activity Record</h2>
-  <p class="subtitle">PPIC3 Faisalabad</p>
+<h3>📍 Getting your location...</h3>
 
-  <div class="card">
-    <h3>Drone Activity Locations</h3>
-    <p class="note">
-      Visit location and press its Capture button.
-      Coordinates are collected from your device's GPS.
-    </p>
-    <p id="progress">Captured: 0 of 10 cameras</p>
-  </div>
-
-  <div id="cameras"></div>
-
-  <div class="card">
-    <button class="submit" id="submitBtn"
-            onclick="submitData()">
-      Submit All Coordinates
-    </button>
-
-    <div id="status" role="status" aria-live="polite">
-      Ready to capture locations.
-    </div>
-  </div>
-
+<div id="actions" style="display:none;">
+  <button class="mapBtn" onclick="openMap()">🗺️ View Location</button>
+  <button class="continueBtn" onclick="goForm()">✅ Continue</button>
 </div>
 
 <script>
-  const API_URL =
-    "YOUR_APPS_SCRIPT_WEB_APP_URL";
+let lat, lng;
 
-  const MAX_CAMERAS = 10;
-  const points = Array(MAX_CAMERAS).fill(null);
+navigator.geolocation.getCurrentPosition(function(position) {
+  lat = position.coords.latitude;
+  lng = position.coords.longitude;
 
-  let busy = false;
+  document.querySelector("h3").innerHTML = "📍 Location Captured";
+  document.getElementById("actions").style.display = "block";
+});
 
-  function setStatus(message) {
-    document.getElementById("status").textContent = message;
-  }
+function openMap() {
+  window.open("https://www.google.com/maps?q=" + lat + "," + lng, "_blank");
+}
 
-  function buildPage() {
-    let html = "";
-
-    for (let i = 0; i < MAX_CAMERAS; i++) {
-      html += `
-        <div class="card">
-          <h3>Camera ${i + 1}</h3>
-
-          <label for="lat${i}">Latitude</label>
-          <input id="lat${i}" readonly
-                 placeholder="Not captured">
-
-          <label for="lng${i}">Longitude</label>
-          <input id="lng${i}" readonly
-                 placeholder="Not captured">
-
-          <button class="capture"
-                  id="capture${i}"
-                  onclick="captureLocation(${i})">
-            Capture Camera ${i + 1}
-          </button>
-
-          <button class="map"
-                  onclick="viewMap(${i})">
-            View Camera on Map
-          </button>
-        </div>
-      `;
-    }
-
-    document.getElementById("cameras").innerHTML = html;
-  }
-
-  function captureLocation(index) {
-    if (busy) return;
-
-    if (!navigator.geolocation) {
-      setStatus("GPS is not supported by this browser.");
-      return;
-    }
-
-    const button = document.getElementById("capture" + index);
-    button.disabled = true;
-    button.textContent = "Getting GPS...";
-
-    setStatus("Please wait. Capturing Camera " + (index + 1));
-
-    navigator.geolocation.getCurrentPosition(
-      function(position) {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        points[index] = { lat: lat, lng: lng };
-
-        document.getElementById("lat" + index).value =
-          lat.toFixed(7);
-
-        document.getElementById("lng" + index).value =
-          lng.toFixed(7);
-
-        button.disabled = false;
-        button.textContent = "Recapture Camera " + (index + 1);
-
-        updateProgress();
-
-        setStatus(
-          "Camera " + (index + 1) +
-          " captured. GPS accuracy reported by device: " +
-          Math.round(position.coords.accuracy) + " metres."
-        );
-      },
-
-      function(error) {
-        button.disabled = false;
-        button.textContent = "Capture Camera " + (index + 1);
-
-        const messages = {
-          1: "Location permission denied. Allow location access.",
-          2: "Location unavailable. Check GPS and try again.",
-          3: "GPS request timed out. Try again."
-        };
-
-        setStatus(messages[error.code] ||
-                  "Unable to capture location.");
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 30000,
-        maximumAge: 0
-      }
-    );
-  }
-
-  function updateProgress() {
-    const count = points.filter(Boolean).length;
-
-    document.getElementById("progress").textContent =
-      "Captured: " + count + " of 10 cameras";
-  }
-
-  function viewMap(index) {
-    if (!points[index]) {
-      setStatus("Capture Camera " + (index + 1) + " first.");
-      return;
-    }
-
-    const p = points[index];
-
-    window.open(
-      "https://www.google.com/maps?q=" +
-      p.lat + "," + p.lng,
-      "_blank",
-      "noopener"
-    );
-  }
-
-  async function submitData() {
-    if (busy) return;
-
-    if (API_URL.includes("YOUR_APPS_SCRIPT_WEB_APP_URL")) {
-      setStatus("Please configure the Apps Script URL first.");
-      return;
-    }
-
-    const count = points.filter(Boolean).length;
-
-    if (count === 0) {
-      setStatus("Capture at least one camera before submitting.");
-      return;
-    }
-
-    const confirmed = confirm(
-      "Submit " + count +
-      " captured camera location(s) to Google Sheets?"
-    );
-
-    if (!confirmed) return;
-
-    busy = true;
-
-    const button = document.getElementById("submitBtn");
-    button.disabled = true;
-    button.textContent = "Submitting...";
-
-    try {
-      /*
-       * text/plain with no-cors avoids a browser preflight.
-       * An opaque response cannot confirm whether the server
-       * saved the data. Verify the new row in Google Sheets.
-       */
-      await fetch(API_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify({ points: points })
-      });
-
-      setStatus(
-        "Submission request sent. Please verify the new row " +
-        "in Google Sheets before closing this page. " +
-        "If no row appears, check the deployment and permissions."
-      );
-
-      button.textContent = "Request Sent — Verify Sheet";
-
-    } catch (error) {
-      setStatus(
-        "Network error. Check your internet connection and try again."
-      );
-
-      button.disabled = false;
-      button.textContent = "Submit All Coordinates";
-      busy = false;
-    }
-  }
-
-  buildPage();
+function goForm() {
+  window.location.href =
+    "https://docs.google.com/forms/d/e/1FAIpQLSfQjU6XeuV_Koy3UMIX-vIHw7njQtu5O1II3I1ttFBg-J9JIg/viewform"
+    + "?entry.858939236=" + lat
+    + "&entry.522193154=" + lng;
+}
 </script>
+
 </body>
 </html>
